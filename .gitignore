@@ -1,0 +1,22 @@
+# uv virtual environment
+.venv/
+
+# uv lock/cache
+uv.lock
+.uv/
+
+# Python standard
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ruff
+.ruff_cache/

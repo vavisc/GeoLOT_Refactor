@@ -9,11 +9,42 @@ from torch.utils.data import Dataset
 class BaseDataset(Dataset):
     def __init__(
         self,
-        dataframe: pd.Dataframe,
+        dataframe: pd.DataFrame,
         cam_cfgs: Dict[str, Any],
         random_cams: bool = False,
         neg_samples: int = 0,
     ):
+        """
+        Base dataset class for handling image and camera data.
+
+        This class provides a generic structure for datasets that consist of
+        reference images, query images from multiple cameras, GPS positions,
+        and orientation information. It is designed to be inherited by specific
+        dataset implementations, which can extend or override its functionality
+        (e.g., resampling strategy or negative sample handling).
+
+        Args:
+            dataframe (pd.DataFrame):
+                A DataFrame containing one row per sample. Expected columns include:
+                - "img_ref_path" (str | pathlib.Path): path to the reference image
+                - "img_qry_path" (Dict[str, str | pathlib.Path]): mapping from camera
+                keys to query image paths
+                - "gps_ref" (float, float): GPS position associated with the reference
+                image
+                - "gps_qry" (float, float): GPS position of the query/vehicle
+                - "bearing" (float): orientation in degrees relative to North
+                (clockwise positive)
+                - Optional: "shift" (float), "rot" (float) for additional transforms
+            cam_cfgs (Dict[str, Any]):
+                Camera configuration dictionary keyed by camera name. Each entry may
+                contain intrinsics, extrinsics, and resolution tensors.
+            random_cams (bool, optional):
+                If True, a random subset of cameras is sampled for each item.
+                If False, all cameras are used. Defaults to False.
+            neg_samples (int, optional):
+                Number of negative samples per positive sample. Currently not
+                implemented. Defaults to 0.
+        """
         super().__init__()
 
         self.random_cams = random_cams

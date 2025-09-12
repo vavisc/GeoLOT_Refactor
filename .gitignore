@@ -20,3 +20,6 @@ build/
 
 # ruff
 .ruff_cache/
+
+# notebooks
+notebooks/

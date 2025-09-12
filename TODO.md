@@ -1,0 +1,11 @@
+- [ ] Ford-Dataset validieren:
+  - [ ] GPS-Punkte visualisieren und auf Plausibilität prüfen
+  - [ ] Kameras validieren (Transformationen, Intrinsics, Bilddimensionen)
+  - [ ] Bilddaten prüfen (passen Kamerabilder und Luftbilder zusammen?)
+  - [ ] Alignment zwischen GPS-Punkten und Satellitenbildern verifizieren
+  - [ ] Abgleich mit Referenzwerten aus "Highly Accurate" Publikation
+
+- [ ] Preprocessing-Wrapper entwickeln:
+  - [ ] Augmentierungen definieren und konfigurierbar machen
+  - [ ] Satelliten-Cropping über affine Transformation (Shift + Rotation berücksichtigen)
+  - [ ] Rotationen konsistent anwenden (inkl. Bodyframe des Fahrzeugs)

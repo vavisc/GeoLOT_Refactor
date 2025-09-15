@@ -240,3 +240,43 @@ class Ford(BaseDataset):
         )
 
         return {cam: FordCamera(cam, DATA_DIR / "Calibration" / "V2") for cam in cams}
+
+
+if __name__ == "__main__":
+    from utils.visualizations.dataset import visualize_train_test
+
+    for sorted in [False, True]:
+        for log in LOGS["train"].keys():
+            train_points, test_points = [], []
+
+            # Collect train points for this log
+            df_train = Ford(
+                split="train",
+                cams=["FL"],
+                log=log,
+                sorted=sorted,
+                random_cams=False,
+            ).df_raw
+            train_points.extend(df_train["gps_qry"].tolist())
+
+            # Collect test points for this log
+            df_test = Ford(
+                split="test",
+                cams=["FL"],
+                log=log,
+                sorted=sorted,
+                random_cams=False,
+            ).df_raw
+            test_points.extend(df_test["gps_qry"].tolist())
+
+            # Make separate visualization per log
+            visualize_train_test(
+                train_points=train_points,
+                test_points=test_points,
+                out_name=(
+                    f"ford_ha_log_{log}.html"
+                    if not sorted
+                    else f"ford_ha_log_{log}_sorted.html"
+                ),
+                zoom_start=17,
+            )

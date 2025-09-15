@@ -23,7 +23,7 @@ class FordCamera(Camera):
         self.data_dir = data_dir
         super().__init__(cam_id)
 
-    def load_body2cam(self) -> np.ndarray:
+    def load_extrinsics(self) -> np.ndarray:
         path = self.data_dir / f"camera{CAM_MAP[self.cam_id]}_body.yaml"
         with open(path, "r") as f:
             data = yaml.safe_load(f)
@@ -49,7 +49,12 @@ class FordCamera(Camera):
         T = np.eye(4)
         T[:3, :3] = R_mat
         T[:3, 3] = t
-        return T
+        return T, "cam2body"
+
+    def load_body2ground(self):
+        T_body2ground = np.eye(4)
+        T_body2ground[2, 3] = -0.334585
+        return T_body2ground
 
     def load_intrinsics(self) -> np.ndarray:
         path = self.data_dir / f"camera{CAM_MAP[self.cam_id]}Intrinsics.yaml"

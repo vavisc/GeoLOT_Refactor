@@ -8,15 +8,25 @@ class Camera(ABC):
 
     def __init__(self, cam_id: str):
         self.cam_id = cam_id
-        self.body2cam = self.load_body2cam()  # 4x4
+
+        extr, kind = self.load_extrinsics()
+
+        if kind == "body2cam":
+            self.body2cam = extr
+            self.cam2body = np.linalg.inv(extr)
+        elif kind == "cam2body":
+            self.cam2body = extr
+            self.body2cam = np.linalg.inv(extr)
+        else:
+            raise ValueError("kind must be 'body2cam' or 'cam2body'")
+
+        self.body2ground = self.load_body2ground()  # 4x4
         self.K = self.load_intrinsics()  # 3x3
         self.width, self.height = self.load_resolution()  # int, int
 
-        self.cam2body = np.linalg.inv(self.body2cam)
-
     @abstractmethod
-    def load_body2cam(self) -> np.ndarray:
-        """Return 4x4 homogeneous transform from body to cam."""
+    def load_extrinsics(self) -> tuple[np.ndarray, str]:
+        """Return (matrix, kind), where kind is 'body2cam' or 'cam2body'"""
         pass
 
     @abstractmethod
@@ -27,6 +37,11 @@ class Camera(ABC):
     @abstractmethod
     def load_resolution(self) -> tuple[int, int]:
         """Return (width, height)."""
+        pass
+
+    @abstractmethod
+    def load_body2ground(self) -> np.ndarray:
+        """Return 4x4 body to ground transformation matrix."""
         pass
 
     # ---- convenience methods ----
@@ -47,3 +62,9 @@ class Camera(ABC):
 
     def get_resolution(self) -> tuple[int, int]:
         return self.width, self.height
+
+    def get_cam2ground(self) -> np.ndarray:
+        return self.body2ground @ self.cam2body
+    def get_ground2cam(self):
+        return np.linalg.inv(self.get_cam2ground())
+

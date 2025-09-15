@@ -103,11 +103,7 @@ class Ford(BaseDataset):
         log_path, indices = cfg["path"], cfg["indices"]
 
         # 1. Load raw info dataframe
-        info_file = (
-            "grd_sat_quaternion_latlon_test.txt"
-            if split == "test"
-            else "grd_sat_quaternion_latlon.txt"
-        )
+        info_file = Ford._get_info_file(split, sorted)
         info_path = log_path / info_file
         df = Ford._read_info_file(info_path)
 
@@ -115,13 +111,25 @@ class Ford(BaseDataset):
         if sorted:
             df = Ford._sort_by_grdname(df)
 
-        # 3. Filter by valid indices
-        df = df.iloc[indices].reset_index(drop=True)
+        # 3. Filter by valid indices if split is train
+        df = (
+            df.iloc[indices].reset_index(drop=True)
+            if split == "train" or sorted
+            else df
+        )
 
         # 4. Enrich with dataset-specific columns
         return Ford._build_dataframe(df, cams, log_path)
 
     # --- helpers ---
+
+    @staticmethod
+    def _get_info_file(split: str, sorted: bool) -> str:
+        """Get the appropriate info file name based on the split."""
+        if split == "test" and not sorted:
+            return "grd_sat_quaternion_latlon_test.txt"
+        else:
+            return "grd_sat_quaternion_latlon.txt"
 
     @staticmethod
     def _read_info_file(info_path: Path) -> pd.DataFrame:
@@ -136,7 +144,8 @@ class Ford(BaseDataset):
             "g_lon",
             "s_lat",
             "s_lon",
-            "shift",
+            "shift_u",
+            "shift_v",
             "rot",
         ]
 
@@ -150,7 +159,8 @@ class Ford(BaseDataset):
             "g_lon": "float64",
             "s_lat": str,
             "s_lon": str,
-            "shift": "float64",
+            "shift_u": "float64",
+            "shift_v": "float64",
             "rot": "float64",
         }
 
@@ -204,104 +214,22 @@ class Ford(BaseDataset):
             ),
         )
 
+        # If both shift_u and shift_v exist, combine them into a single shift column
+        if "shift_u" in df.columns and "shift_v" in df.columns:
+            df = df.assign(
+                shift=df.apply(lambda row: (row["shift_u"], row["shift_v"]), axis=1)
+            )
+
+        # Base required columns
         cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "bearing"]
-        for opt in ("shift", "rot"):
-            if opt in df.columns:
-                cols.append(opt)
+
+        # Add optional columns if present
+        if "shift" in df.columns:
+            cols.append("shift")
+        if "rot" in df.columns:
+            cols.append("rot")
+
         return df[cols]
-
-    # @staticmethod
-    # def _load_dataframe(split, cams, log, sorted) -> pd.DataFrame:
-    #     """Load and return the dataset dataframe.
-
-    #     Implementation placeholder — keep external behavior unchanged.
-    #     """
-
-    #     def build_ford_dataframe(
-    #         df: pd.DataFrame, cams: List, log_path: Path
-    #     ) -> pd.DataFrame:
-    #         df = df.assign(
-    #             img_ref_path=df.apply(
-    #                 lambda row: log_path
-    #                 / "SatelliteMaps"
-    #                 / f"{row['s_lat']}_{row['s_lon']}.png",
-    #                 axis=1,
-    #             ),
-    #             img_qry_path=df.apply(
-    #                 lambda row: {
-    #                     cam: log_path
-    #                     / f"{'-'.join(log_path.relative_to(DATA_DIR).parts)}_{cam}"
-    #                     / row["grd_name"]
-    #                     for cam in cams
-    #                 },
-    #                 axis=1,
-    #             ),
-    #             gps_ref=df.apply(
-    #                 lambda row: (float(row["s_lat"]), float(row["s_lon"])), axis=1
-    #             ),
-    #             gps_qry=df.apply(
-    #                 lambda row: (float(row["g_lat"]), float(row["g_lon"])), axis=1
-    #             ),
-    #             bearing=df.apply(
-    #                 lambda row: np.arctan2(
-    #                     2.0 * (row["q3"] * row["q0"] + row["q1"] * row["q2"]),
-    #                     -1.0 + 2.0 * (row["q0"] * row["q0"] + row["q1"] * row["q1"]),
-    #                 )
-    #                 / np.pi
-    #                 * 180.0,
-    #                 axis=1,
-    #             ),
-    #         )
-
-    #         # base required columns
-    #         cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "bearing"]
-
-    #         # append optional ones if present
-    #         for opt in ("shift", "rot"):
-    #             if opt in df.columns:
-    #                 cols.append(opt)
-
-    #         return df[cols]
-
-    #     cfg = LOGS[split][log]
-    #     log_path, indices = cfg["path"], cfg["indices"]
-
-    #     info_file = (
-    #         "grd_sat_quaternion_latlon_test.txt"
-    #         if split == "test"
-    #         else "grd_sat_quaternion_latlon.txt"
-    #     )
-
-    #     expected_cols = [
-    #         "grd_name",
-    #         "q0",
-    #         "q1",
-    #         "q2",
-    #         "q3",
-    #         "g_lat",
-    #         "g_lon",
-    #         "s_lat",
-    #         "s_lon",
-    #         "shift",
-    #         "rot",
-    #     ]
-
-    #     info_path = log_path / "SatelliteMaps_18" / info_file
-    #     df = pd.read_csv(info_path, sep=" ", header=None, dtype=str)
-
-    #     # assign only up to the number of columns actually present
-    #     # test case has additional columns shift and rot
-    #     df.columns = expected_cols[: df.shape[1]]
-
-    #     if sorted:
-    #         df = df.assign(
-    #             grd_num=df["grd_name"].str.replace(".png", "", regex=False).astype(int) # noqa
-    #         )
-    #         df = df.sort_values(by="grd_num", ascending=True).reset_index(drop=True)
-
-    #     df = df.iloc[indices].reset_index(drop=True)
-
-    #     return build_ford_dataframe(df, cams, log_path)
 
     @staticmethod
     def _load_cams(cams: List) -> Dict[str, Camera]:

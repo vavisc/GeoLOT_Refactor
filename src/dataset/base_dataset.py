@@ -32,7 +32,7 @@ class BaseDataset(Dataset):
                 - "gps_ref" (float, float): GPS position associated with the reference
                 image
                 - "gps_qry" (float, float): GPS position of the query/vehicle
-                - "bearing" (float): orientation in degrees relative to North
+                - "yaw" (float): orientation in degrees relative to North
                 (clockwise positive)
                 - Optional: "shift" (float), "rot" (float) for additional transforms
             cam_cfgs (Dict[str, Any]):
@@ -73,7 +73,7 @@ class BaseDataset(Dataset):
             "cam_cfgs": cam_cfgs,
             "gps_ref": row["gps_ref"],  # GPS of ref image
             "gps_qry": row["gps_qry"],  # GPS of vehicle
-            "bearing": row["bearing"],  # bearing wrt. North
+            "yaw": row["yaw"],  # yaw wrt. North
             "shift": row.get("shift"),  # None if not present
             "rot": row.get("rot"),  # None if not present
             "neg_samples": self._load_neg_samples(),
@@ -101,7 +101,7 @@ class BaseDataset(Dataset):
         Output (dict):
             {
                 "neg_img_ref": List[PIL.Image.Image],
-                "neg_bearing": [float],
+                "neg_yaw": [float],
             }
             or None if no negative samples are loaded.
         """

@@ -180,7 +180,7 @@ class Ford(BaseDataset):
     def _build_dataframe(
         df: pd.DataFrame, cams: List[str], log_path: Path
     ) -> pd.DataFrame:
-        """Add dataset-specific columns (paths, gps, bearing, etc.)."""
+        """Add dataset-specific columns (paths, gps, yaw, etc.)."""
         df = df.assign(
             img_ref_path=df.apply(
                 lambda row: log_path
@@ -203,7 +203,7 @@ class Ford(BaseDataset):
             gps_qry=df.apply(
                 lambda row: (float(row["g_lat"]), float(row["g_lon"])), axis=1
             ),
-            bearing=df.apply(
+            yaw=df.apply(
                 lambda row: np.arctan2(
                     2.0 * (row["q3"] * row["q0"] + row["q1"] * row["q2"]),
                     -1.0 + 2.0 * (row["q0"] ** 2 + row["q1"] ** 2),
@@ -221,7 +221,7 @@ class Ford(BaseDataset):
             )
 
         # Base required columns
-        cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "bearing"]
+        cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "yaw"]
 
         # Add optional columns if present
         if "shift" in df.columns:

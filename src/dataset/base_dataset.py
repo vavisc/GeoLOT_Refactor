@@ -53,6 +53,8 @@ class BaseDataset(Dataset):
         self.df_raw = dataframe
         self.cam_cfgs = cam_cfgs
 
+        self._assert_paths_exist()
+
     def __len__(self) -> int:
         return len(self.df_epoch)
 
@@ -118,3 +120,16 @@ class BaseDataset(Dataset):
             seed (int | None): optional random seed (can be used in subclasses).
         """
         self.df_epoch = self.df_raw
+
+    def _assert_paths_exist(self) -> None:
+        """Check that all image paths in the dataframe exist."""
+        for col in ["img_ref_path", "img_qry_path"]:
+            for entry in self.df_raw[col]:
+                if isinstance(entry, dict):
+                    paths = entry.values()
+                else:
+                    paths = [entry]
+
+                for path in paths:
+                    if not path.exists():
+                        raise FileNotFoundError(f"Image path does not exist: {path}")

@@ -149,22 +149,8 @@ class Ford(BaseDataset):
             "rot",
         ]
 
-        dtype_map = {
-            "grd_name": str,
-            "q0": "float64",
-            "q1": "float64",
-            "q2": "float64",
-            "q3": "float64",
-            "g_lat": "float64",
-            "g_lon": "float64",
-            "s_lat": str,
-            "s_lon": str,
-            "shift_u": "float64",
-            "shift_v": "float64",
-            "rot": "float64",
-        }
+        df = pd.read_csv(info_path, sep=" ", header=None, dtype=str)
 
-        df = pd.read_csv(info_path, sep=" ", header=None, dtype=dtype_map)
         df.columns = expected_cols[: df.shape[1]]
         return df
 
@@ -181,6 +167,7 @@ class Ford(BaseDataset):
         df: pd.DataFrame, cams: List[str], log_path: Path
     ) -> pd.DataFrame:
         """Add dataset-specific columns (paths, gps, yaw, etc.)."""
+
         df = df.assign(
             img_ref_path=df.apply(
                 lambda row: log_path
@@ -198,15 +185,28 @@ class Ford(BaseDataset):
                 axis=1,
             ),
             gps_ref=df.apply(
-                lambda row: (float(row["s_lat"]), float(row["s_lon"])), axis=1
+                lambda row: (
+                    np.float64(row["s_lat"]),
+                    np.float64(row["s_lon"]),
+                ),
+                axis=1,
             ),
             gps_qry=df.apply(
-                lambda row: (float(row["g_lat"]), float(row["g_lon"])), axis=1
+                lambda row: (
+                    np.float64(row["g_lat"]),
+                    np.float64(row["g_lon"]),
+                ),
+                axis=1,
             ),
             yaw=df.apply(
                 lambda row: np.arctan2(
-                    2.0 * (row["q3"] * row["q0"] + row["q1"] * row["q2"]),
-                    -1.0 + 2.0 * (row["q0"] ** 2 + row["q1"] ** 2),
+                    2.0
+                    * (
+                        np.float64(row["q3"]) * np.float64(row["q0"])
+                        + np.float64(row["q1"]) * np.float64(row["q2"])
+                    ),
+                    -1.0
+                    + 2.0 * (np.float64(row["q0"]) ** 2 + np.float64(row["q1"]) ** 2),
                 )
                 / np.pi
                 * 180.0,
@@ -214,10 +214,16 @@ class Ford(BaseDataset):
             ),
         )
 
-        # If both shift_u and shift_v exist, combine them into a single shift column
+        # If both shift_u and shift_v exist, combine into one tuple of float64
         if "shift_u" in df.columns and "shift_v" in df.columns:
             df = df.assign(
-                shift=df.apply(lambda row: (row["shift_u"], row["shift_v"]), axis=1)
+                shift=df.apply(
+                    lambda row: (
+                        np.float64(row["shift_u"]),
+                        np.float64(row["shift_v"]),
+                    ),
+                    axis=1,
+                )
             )
 
         # Base required columns
@@ -227,6 +233,8 @@ class Ford(BaseDataset):
         if "shift" in df.columns:
             cols.append("shift")
         if "rot" in df.columns:
+            # ensure rot is float64 as well
+            df["rot"] = df["rot"].astype(np.float64)
             cols.append("rot")
 
         return df[cols]

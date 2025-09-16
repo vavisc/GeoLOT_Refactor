@@ -68,3 +68,55 @@ class Camera(ABC):
 
     def get_ground2cam(self):
         return np.linalg.inv(self.get_cam2ground())
+
+    def project_grid(
+        self,
+        grid_points: np.ndarray,  # [..., 3]
+        normalize: bool = True,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Project 3D points in body frame into camera UV coordinates (NumPy only).
+
+        Parameters
+        ----------
+        grid_points : np.ndarray
+            Array of shape [..., 3] with (x, y, z) in body frame.
+        normalize : bool, optional
+            If True, normalize UV coordinates to [0, 1], by dividing by image width
+            and height. Default is True.
+
+        Returns
+        -------
+        uv : np.ndarray
+            Projected pixel coordinates, shape [..., 2].
+        mask : np.ndarray (bool)
+            Boolean mask, True where projection is valid.
+        """
+        H, W, _ = grid_points.shape
+        P = grid_points.reshape(-1, 3).T  # (3, N)
+        N = P.shape[1]
+
+        # Homogeneous coords
+        P_h = np.vstack([P, np.ones((1, N))])  # (4, N)
+
+        # Transform to camera frame
+        P_cam = self.get_body2cam() @ P_h  # (4, N)
+        X, Y, Z = P_cam[0], P_cam[1], P_cam[2]
+
+        # Project with intrinsics
+        uvw = self.get_intrinsics() @ np.vstack([X, Y, Z])  # (3, N)
+        u = uvw[0] / uvw[2]
+        v = uvw[1] / uvw[2]
+
+        # Validity mask
+        mask = (Z > 0) & (u >= 0) & (u < self.width) & (v >= 0) & (v < self.height)
+
+        if normalize:
+            u = u / self.width
+            v = v / self.height
+
+        # Reshape back to grid
+        uv = np.stack([u, v], axis=-1).reshape(H, W, 2)
+        mask = mask.reshape(H, W)
+
+        return uv.astype(np.float32), mask

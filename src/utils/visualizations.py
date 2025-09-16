@@ -3,11 +3,11 @@ import os
 from typing import List, Tuple
 
 import folium
+import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from torchvision import transforms
-
-from utils.vehicle_pose import VehiclePose
 
 
 def visualize_train_test(
@@ -185,3 +185,98 @@ def draw_vehicle_on_image(
         _draw_vehicle_pose(draw, pred_pose, color="red")
 
     return pil_img
+
+
+def visualize_grid_on_image(
+    image: torch.Tensor,  # [C, H, W] in [0,1] or [0,255]
+    grid: torch.Tensor,  # [H_out, W_out, 2] in [-1,1]
+    point_size: int = 3,
+    gamma: float = 0.6,  # <1 = more saturated blend
+) -> Image.Image:
+    """Overlay sampled grid points on an image with smoothly interpolated, vibrant
+    corner colors."""
+
+    # --- prep image ---
+    if image.ndim == 3:  # [C, H, W]
+        image = image.permute(1, 2, 0)  # -> [H, W, C]
+    img_np = image.detach().cpu().numpy()
+    if img_np.max() <= 1.0:
+        img_np = (img_np * 255).astype(np.uint8)
+    else:
+        img_np = img_np.astype(np.uint8)
+
+    pil_img = Image.fromarray(img_np)
+    H, W = pil_img.size[1], pil_img.size[0]
+
+    # --- grid to pixel coords ---
+    u = ((grid[..., 0] + 1) / 2.0) * (W - 1)  # x coords
+    v = ((grid[..., 1] + 1) / 2.0) * (H - 1)  # y coords
+    u = u.cpu().numpy()
+    v = v.cpu().numpy()
+
+    # --- vibrant corner colors (R,G,B) ---
+    c_tl = np.array([255, 0, 128])  # magenta
+    c_tr = np.array([0, 200, 255])  # cyan
+    c_bl = np.array([255, 220, 0])  # yellow
+    c_br = np.array([255, 80, 0])  # bright orange
+
+    # --- bilinear interpolation of colors ---
+    H_out, W_out = grid.shape[:2]
+    yi = np.linspace(0, 1, H_out)[:, None, None]  # (H_out,1,1)
+    xi = np.linspace(0, 1, W_out)[None, :, None]  # (1,W_out,1)
+
+    # mix in linear space
+    colors = (
+        (1 - xi) * (1 - yi) * c_tl
+        + xi * (1 - yi) * c_tr
+        + (1 - xi) * yi * c_bl
+        + xi * yi * c_br
+    ) / 255.0  # normalize to [0,1]
+
+    # apply gamma correction to boost saturation
+    colors = np.clip(colors, 0, 1) ** gamma
+    colors = (colors * 255).astype(np.uint8)
+
+    # --- draw points ---
+    draw = ImageDraw.Draw(pil_img)
+    for i in range(H_out):
+        for j in range(W_out):
+            x, y = u[i, j], v[i, j]
+            if 0 <= x < W and 0 <= y < H:
+                color = tuple(colors[i, j])
+                draw.ellipse(
+                    [x - point_size, y - point_size, x + point_size, y + point_size],
+                    fill=color,
+                    outline=color,
+                )
+
+    return pil_img
+
+
+def sample_image_with_grid(
+    image: torch.Tensor,  # [C,H,W] in [0,1] or [0,255]
+    grid: torch.Tensor,  # [H_out, W_out, 2] in [-1,1]
+    mode: str = "bilinear",
+    align_corners: bool = True,
+) -> Image.Image:
+    """Sample an image using a normalized grid and return as PIL.Image."""
+
+    if image.ndim == 3:  # [C,H,W]
+        image = image.unsqueeze(0)  # -> [1,C,H,W]
+
+    if image.max() > 1.0:
+        image = image / 255.0  # normalize to [0,1]
+
+    # [H_out, W_out, 2] -> [1, H_out, W_out, 2]
+    grid = grid.unsqueeze(0)
+
+    # grid_sample: input [N,C,H,W], grid [N,H_out,W_out,2]
+    sampled = F.grid_sample(image, grid, mode=mode, align_corners=align_corners)
+
+    # -> [C,H_out,W_out]
+    sampled = sampled.squeeze(0).detach().cpu()
+
+    # convert to numpy
+    sampled_np = (sampled.numpy().transpose(1, 2, 0) * 255).astype(np.uint8)
+
+    return Image.fromarray(sampled_np)

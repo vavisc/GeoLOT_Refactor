@@ -8,8 +8,12 @@
 
 - [ ] Preprocessing-Wrapper entwickeln:
   - [ ] Augmentierungen definieren und konfigurierbar machen
-  - [ ] Satelliten-Cropping über affine Transformation (Shift + Rotation berücksichtigen)
-  - [ ] Rotationen konsistent anwenden (inkl. Bodyframe des Fahrzeugs)
+  - [x] Satelliten-Cropping über affine Transformation (Shift + Rotation berücksichtigen)
+  - [ ] LIDAR-Einblenden um zu sehen, wie gut gt stimmt.
 
 - [ ] Training
   - [ ] Check if ford_ha sorted does effect performance
+  - [ ] Check if KD helps in refining GT -FMAPS could get sharper
+
+- [ ] README
+  - [ ] Add section about scripts for visualization of GPS points in train, test splits

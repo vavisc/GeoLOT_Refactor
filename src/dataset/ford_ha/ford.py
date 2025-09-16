@@ -7,6 +7,7 @@ import yaml
 from scipy.spatial.transform import Rotation as R
 
 from utils.camera import Camera
+from utils.visualizations import visualize_train_test
 
 from ..base_dataset import BaseDataset
 from .config import (
@@ -166,7 +167,7 @@ class Ford(BaseDataset):
     def _build_dataframe(
         df: pd.DataFrame, cams: List[str], log_path: Path
     ) -> pd.DataFrame:
-        """Add dataset-specific columns (paths, gps, yaw, etc.)."""
+        """Add dataset-specific columns (paths, gps, heading, etc.)."""
 
         df = df.assign(
             img_ref_path=df.apply(
@@ -198,7 +199,7 @@ class Ford(BaseDataset):
                 ),
                 axis=1,
             ),
-            yaw=df.apply(
+            heading=df.apply(
                 lambda row: np.arctan2(
                     2.0
                     * (
@@ -227,7 +228,7 @@ class Ford(BaseDataset):
             )
 
         # Base required columns
-        cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "yaw"]
+        cols = ["img_ref_path", "img_qry_path", "gps_ref", "gps_qry", "heading"]
 
         # Add optional columns if present
         if "shift" in df.columns:
@@ -251,8 +252,6 @@ class Ford(BaseDataset):
 
 
 if __name__ == "__main__":
-    from utils.visualizations.dataset import visualize_train_test
-
     for sorted in [False, True]:
         for log in LOGS["train"].keys():
             train_points, test_points = [], []

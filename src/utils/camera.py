@@ -65,6 +65,6 @@ class Camera(ABC):
 
     def get_cam2ground(self) -> np.ndarray:
         return self.body2ground @ self.cam2body
+
     def get_ground2cam(self):
         return np.linalg.inv(self.get_cam2ground())
-

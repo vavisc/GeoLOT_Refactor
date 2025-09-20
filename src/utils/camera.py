@@ -9,23 +9,17 @@ class Camera(ABC):
     def __init__(self, cam_id: str):
         self.cam_id = cam_id
 
-        extr, kind = self.load_extrinsics()
+        extr = self.load_extrinsics()
 
-        if kind == "body2cam":
-            self.body2cam = extr
-            self.cam2body = np.linalg.inv(extr)
-        elif kind == "cam2body":
-            self.cam2body = extr
-            self.body2cam = np.linalg.inv(extr)
-        else:
-            raise ValueError("kind must be 'body2cam' or 'cam2body'")
+        self.cam2body = extr
+        self.body2cam = np.linalg.inv(extr)
 
         self.body2ground = self.load_body2ground()  # 4x4
         self.K = self.load_intrinsics()  # 3x3
         self.width, self.height = self.load_resolution()  # int, int
 
     @abstractmethod
-    def load_extrinsics(self) -> tuple[np.ndarray, str]:
+    def load_extrinsics(self) -> np.ndarray:
         """Return (matrix, kind), where kind is 'body2cam' or 'cam2body'"""
         pass
 

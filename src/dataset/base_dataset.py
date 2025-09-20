@@ -1,9 +1,23 @@
 import random
-from typing import Any, Dict, Hashable, List
+from dataclasses import dataclass
+from typing import Any, Dict
 
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
+
+
+@dataclass
+class RawSample:
+    img_ref: Image.Image
+    img_qry: list[Image.Image]
+    gps_ref: tuple[float, float]
+    gps_qry: tuple[float, float]
+    heading: float
+    shift: tuple[float, float] | None
+    rot: float | None
+    cams: tuple[str]
+    neg_samples: Any
 
 
 class BaseDataset(Dataset):
@@ -15,14 +29,6 @@ class BaseDataset(Dataset):
         neg_samples: int = 0,
     ):
         """
-        Base dataset class for handling image and camera data.
-
-        This class provides a generic structure for datasets that consist of
-        reference images, query images from multiple cameras, GPS positions,
-        and orientation information. It is designed to be inherited by specific
-        dataset implementations, which can extend or override its functionality
-        (e.g., resampling strategy or negative sample handling).
-
         Args:
             dataframe (pd.DataFrame):
                 A DataFrame containing one row per sample. Expected columns include:
@@ -51,14 +57,14 @@ class BaseDataset(Dataset):
         self.neg_samples = neg_samples
 
         self.df_raw = dataframe
+        self.df_epoch = pd.DataFrame()  # to be populated in resample()
         self.cam_cfgs = cam_cfgs
-
         self._assert_paths_exist()
 
     def __len__(self) -> int:
         return len(self.df_epoch)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> RawSample:
         row = self.df_epoch.iloc[idx]
 
         # Loading reference image
@@ -67,31 +73,30 @@ class BaseDataset(Dataset):
         # Loading query images and camera configurations
         cams = self._get_cams()
         img_qry = [Image.open(row["img_qry_path"][k]).convert("RGB") for k in cams]
-        cam_cfgs = {k: [self.cam_cfgs[k]] for k in cams}
 
-        return {
-            "img_ref": img_ref,
-            "img_qry": img_qry,
-            "cam_cfgs": cam_cfgs,
-            "gps_ref": row["gps_ref"],  # GPS of ref image
-            "gps_qry": row["gps_qry"],  # GPS of vehicle
-            "heading": row["heading"],  # heading wrt. North
-            "shift": row.get("shift"),  # None if not present
-            "rot": row.get("rot"),  # None if not present
-            "neg_samples": self._load_neg_samples(),
-        }
+        return RawSample(
+            img_ref=img_ref,
+            img_qry=img_qry,
+            gps_ref=row["gps_ref"],
+            gps_qry=row["gps_qry"],
+            heading=row["heading"],
+            shift=row.get("shift"),
+            rot=row.get("rot"),
+            cams=cams,
+            neg_samples=self._load_neg_samples(),
+        )
 
     def _load_image(self, path: str) -> Any:
         return Image.open(path).convert("RGB")
 
-    def _get_cams(self) -> List[Hashable]:
+    def _get_cams(self) -> tuple:
         all_keys = list(self.cam_cfgs.keys())
 
         if not self.random_cams:
-            return all_keys
+            return tuple(all_keys)
 
         n = random.randint(1, len(all_keys))
-        return random.sample(all_keys, n)
+        return tuple(random.sample(all_keys, n))
 
     def _load_neg_samples(self):
         """
